@@ -94,6 +94,7 @@ def main():
         if not ok:
             break
 
+        clean = frame.copy()
         h, w = frame.shape[:2]
         for i in range(1, n):
             x = w * i // n
@@ -133,7 +134,7 @@ def main():
                     x0, y0 = w * c // n, h * r // n
                     x1, y1 = w * (c + 1) // n, h * (r + 1) // n
                     path = os.path.join(CAPTURES_DIR, f"{stamp}-r{r}-c{c}.jpg")
-                    cv2.imwrite(path, frame[y0:y1, x0:x1])
+                    cv2.imwrite(path, clean[y0:y1, x0:x1])
                     saved.append(path)
                     idx += 1
             print(f"Saved {idx} images to captures/")
