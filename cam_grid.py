@@ -31,6 +31,14 @@ def load_piece_model():
     return model, labels
 
 
+def open_camera(index):
+    cap = cv2.VideoCapture(index)
+    if cap.isOpened():
+        return cap
+    cap.release()
+    return None
+
+
 def classify_images(model, labels, paths):
     pieces = []
     for p in paths:
@@ -70,9 +78,23 @@ def main():
         print(f"Rounding up to a {n}x{n} grid ({total} frames) to keep the "
               f"same aspect ratio as the full frame.")
 
-    cap = cv2.VideoCapture(0)
-    if not cap.isOpened():
-        print("Could not open camera.")
+    camera_index = 0
+    while True:
+        value = input(f"Camera index [{camera_index}]: ").strip()
+        if not value:
+            break
+        try:
+            idx = int(value)
+            if idx >= 0:
+                camera_index = idx
+                break
+            print("Must be a non-negative integer.")
+        except ValueError:
+            print("Invalid number.")
+
+    cap = open_camera(camera_index)
+    if cap is None:
+        print(f"Could not open camera {camera_index}.")
         return
 
     model = None
@@ -87,7 +109,8 @@ def main():
         print("keras/numpy not installed; images will be saved without classification.")
 
     pieces = []
-    print("Press 'm' to save the marked divisions, 'q' or ESC to quit.")
+    print("Press 'm' to save the marked divisions, 'c' to switch camera, "
+          "'q' or ESC to quit.")
     os.makedirs(CAPTURES_DIR, exist_ok=True)
     while True:
         ok, frame = cap.read()
@@ -119,10 +142,31 @@ def main():
                                   (0, 0, 255), 1)
                 idx += 1
 
-        cv2.imshow("Grid", frame)
+        cv2.imshow(f"Grid - camera {camera_index}", frame)
         key = cv2.waitKey(1) & 0xFF
         if key in (ord("q"), 27):
             break
+        if key == ord("c"):
+            cap.release()
+            switched = None
+            for idx in range(10):
+                cand_index = (camera_index + 1 + idx) % 10
+                cand = open_camera(cand_index)
+                if cand is not None:
+                    switched = cand
+                    camera_index = cand_index
+                    break
+            if switched is None:
+                print("No other camera found.")
+                cap = open_camera(camera_index)
+                if cap is None:
+                    print(f"Could not reopen camera {camera_index}; quitting.")
+                    break
+                print(f"Stayed on camera {camera_index}.")
+            else:
+                cap = switched
+                print(f"Switched to camera {camera_index}.")
+            continue
         if key == ord("m"):
             stamp = time.strftime("%Y%m%d-%H%M%S")
             idx = 0
