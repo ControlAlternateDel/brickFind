@@ -20,7 +20,7 @@ try:
 except ImportError:
     _HAS_ML = False
 
-
+'''
 def add_pieces_to_db(pieces):
     conn = sqlite3.connect(DB_PATH)
     try:
@@ -37,7 +37,7 @@ def add_pieces_to_db(pieces):
         conn.commit()
     finally:
         conn.close()
-
+'''
 
 def load_piece_model():
     model = load_model(MODEL_PATH)
@@ -179,7 +179,7 @@ def main():
                 print(f"Classification failed: {exc}")
 
             if new_pieces:
-                add_pieces_to_db(new_pieces)
+                """add_pieces_to_db(new_pieces)"""
                 print(f"Added to database (table Your_parts): {new_pieces}")
 
             with open(PIECES_PATH, "w") as f:
