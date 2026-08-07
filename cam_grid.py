@@ -1,5 +1,6 @@
 import math
 import os
+import sqlite3
 import time
 import traceback
 
@@ -10,6 +11,7 @@ MODEL_PATH = os.path.join(BASE_DIR, "model", "keras_model.h5")
 LABELS_PATH = os.path.join(BASE_DIR, "model", "labels.txt")
 CAPTURES_DIR = os.path.join(BASE_DIR, "captures")
 PIECES_PATH = os.path.join(BASE_DIR, "pieces.txt")
+DB_PATH = os.path.join(BASE_DIR, "brickfind.db")
 
 try:
     import numpy as np
@@ -17,6 +19,24 @@ try:
     _HAS_ML = True
 except ImportError:
     _HAS_ML = False
+
+
+def add_pieces_to_db(pieces):
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS Your_parts ("
+            "name TEXT PRIMARY KEY, quantity INTEGER NOT NULL DEFAULT 1)"
+        )
+        for piece in pieces:
+            conn.execute(
+                "INSERT INTO Your_parts (name, quantity) VALUES (?, 1) "
+                "ON CONFLICT(name) DO UPDATE SET quantity = quantity + 1",
+                (piece,),
+            )
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def load_piece_model():
@@ -70,10 +90,17 @@ def main():
         print(f"Rounding up to a {n}x{n} grid ({total} frames) to keep the "
               f"same aspect ratio as the full frame.")
 
-    #camnum = input("enter camera")
-    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+    camnum = 0
+    value = input(f"Enter camera number [{camnum}]: ").strip()
+    if value:
+        try:
+            camnum = int(value)
+        except ValueError:
+            print(f"Invalid number, using camera {camnum}.")
+
+    cap = cv2.VideoCapture(camnum, cv2.CAP_DSHOW)
     if not cap.isOpened():
-        print("Could not open camera.")
+        print(f"Could not open camera {camnum}.")
         return
 
     model = None
@@ -140,14 +167,20 @@ def main():
                     idx += 1
             print(f"Saved {idx} images to captures/")
 
+            new_pieces = []
             try:
                 if model is not None:
-                    pieces.extend(classify_images(model, labels, saved))
+                    new_pieces = classify_images(model, labels, saved)
+                    pieces.extend(new_pieces)
                 else:
                     print("Model not loaded; skipping classification.")
             except Exception as exc:
                 traceback.print_exc()
                 print(f"Classification failed: {exc}")
+
+            if new_pieces:
+                add_pieces_to_db(new_pieces)
+                print(f"Added to database (table Your_parts): {new_pieces}")
 
             with open(PIECES_PATH, "w") as f:
                 f.write("\n".join(pieces))
