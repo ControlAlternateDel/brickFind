@@ -1,5 +1,7 @@
 numpy==2.5.1
 opencv-python==5.0.0.93
+customtkinter==6.0.0
+Pillow==12.3.0
+pyobjc-framework-AVFoundation==12.2.1
 tensorflow==2.21.0
 tf-keras==2.21.0
-customtkinter==6.0.0
