@@ -16,7 +16,6 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, "model", "keras_model.h5")
 LABELS_PATH = os.path.join(BASE_DIR, "model", "labels.txt")
 CAPTURES_DIR = os.path.join(BASE_DIR, "captures")
-PIECES_PATH = os.path.join(BASE_DIR, "pieces.txt")
 DB_PATH = os.path.join(BASE_DIR, "brickfind.db")
 SETS_PATH = os.path.join(BASE_DIR, "sets.json")
 CAMERA_NAMES_PATH = os.path.join(BASE_DIR, "camera_names.json")
@@ -312,7 +311,6 @@ class App(ctk.CTk):
         self.n = max(1, math.ceil(math.sqrt(divisions)))
         self.model = model
         self.labels = labels
-        self.pieces = []
         self.clean = None
         self.camera_index = None
         self.cap = None
@@ -422,9 +420,6 @@ class App(ctk.CTk):
 
     def clear_cached(self):
         clear_inventory()
-        self.pieces = []
-        with open(PIECES_PATH, "w") as f:
-            f.write("")
         self.status.configure(text="Cleared cached inventory")
         self._refresh_sets()
         self._refresh_inventory()
@@ -545,7 +540,6 @@ class App(ctk.CTk):
         try:
             if self.model is not None:
                 new_pieces = classify_images(self.model, self.labels, saved)
-                self.pieces.extend(new_pieces)
             else:
                 print("Model not loaded; skipping classification.")
         except Exception as exc:
@@ -554,10 +548,6 @@ class App(ctk.CTk):
 
         if new_pieces:
             add_pieces_to_db(new_pieces)
-
-        with open(PIECES_PATH, "w") as f:
-            f.write("\n".join(self.pieces))
-            f.write("\n")
 
         self.status.configure(
             text=f"Saved {len(saved)} images; identified {len(new_pieces)} piece(s): {new_pieces}")
