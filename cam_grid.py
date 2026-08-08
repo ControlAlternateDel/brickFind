@@ -21,6 +21,17 @@ DB_PATH = os.path.join(BASE_DIR, "brickfind.db")
 SETS_PATH = os.path.join(BASE_DIR, "sets.json")
 CAMERA_NAMES_PATH = os.path.join(BASE_DIR, "camera_names.json")
 
+DISPLAY_NAMES = {
+    "3003": "2x2",
+    "3001": "2x4",
+    "3004": "1x2",
+    "3010": "1x4",
+}
+
+
+def display_name(label):
+    return DISPLAY_NAMES.get(label, label)
+
 try:
     import numpy as np
     from tf_keras.models import load_model
@@ -195,19 +206,13 @@ def load_sets():
 
 
 def load_inventory():
-    """Return {piece: quantity} accumulated in the SQLite database."""
+    """Return {raw model label: quantity} accumulated in the SQLite database."""
     conn = sqlite3.connect(DB_PATH)
     try:
         rows = conn.execute("SELECT name, quantity FROM Your_parts").fetchall()
     finally:
         conn.close()
-    translateArr = []
-    for i in rows:
-        if i[0] == 3003:
-            translateArr.append(("2x2", i[1]))
-        else:
-            translateArr.append((i[0], i[1]))
-    return {name: qty for name, qty in translateArr}
+    return {name: qty for name, qty in rows}
 
 
 def buildable_sets(sets, inventory):
@@ -434,12 +439,20 @@ class App(ctk.CTk):
             return
         inventory = load_inventory()
         ready = buildable_sets(self.sets, inventory)
-        if ready:
-            for name in ready:
-                ctk.CTkLabel(self.sets_panel, text=f"- {name}", wraplength=160,
-                             justify="left").pack(anchor="w", padx=6, pady=1)
-        else:
-            ctk.CTkLabel(self.sets_panel, text="none yet", text_color="gray").pack(
+        for name in sorted(self.sets):
+            missing = {piece: qty - inventory.get(piece, 0)
+                       for piece, qty in self.sets[name].items()
+                       if inventory.get(piece, 0) < qty}
+            if missing:
+                text = f"- {name}:\n    missing "
+                text += ", ".join(
+                    f"{display_name(p)} x{q}" for p, q in sorted(missing.items()))
+                color = "gray"
+            else:
+                text = f"- {name}: READY"
+                color = "#7ecf6a"
+            ctk.CTkLabel(self.sets_panel, text=text, text_color=color,
+                         wraplength=160, justify="left").pack(
                 anchor="w", padx=6, pady=1)
         print(f"Sets you can make: {', '.join(ready) if ready else 'none'}")
 
@@ -452,7 +465,8 @@ class App(ctk.CTk):
                          text_color="gray").pack(anchor="w", padx=6, pady=1)
             return
         for name in sorted(inventory):
-            ctk.CTkLabel(self.inventory_panel, text=f"{name}: {inventory[name]}").pack(
+            shown = display_name(name)
+            ctk.CTkLabel(self.inventory_panel, text=f"{shown}: {inventory[name]}").pack(
                 anchor="w", padx=6, pady=1)
 
     def switch_camera(self, index):
